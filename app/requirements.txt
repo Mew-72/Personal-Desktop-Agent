@@ -1,0 +1,8 @@
+google-adk
+fastapi
+python-dotenv
+uvicorn
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
