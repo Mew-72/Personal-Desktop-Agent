@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Assistant</title>
+
+  <!-- External Logic (Kept as requested) -->
+  <script src="/static/js/app.js" type="module"></script>
+
+  <!-- Markdown Parsing Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      /* Clean Light Palette */
+      --bg-color: #ffffff;
+      --surface-color: #f0f4f9;
+      /* Light grey for inputs/bubbles */
+      --text-main: #1f1f1f;
+      --text-secondary: #444746;
+      --accent-color: #0b57d0;
+      /* Google Blue */
+      /* Reddish Gradient per your code */
+      --accent-gradient: linear-gradient(90deg, #1559be, #04a2eb, #1094e7);
+
+      /* Code Blocks */
+      --code-bg: #f5f5f5;
+      --code-text: #2d2d2d;
+
+      --input-max-width: 800px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- Minimal Header --- */
+    header {
+      padding: 20px 24px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      background: linear-gradient(to bottom, #ffffff 90%, rgba(255, 255, 255, 0));
+    }
+
+    .brand {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand i {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* --- Main Content Area --- */
+    main {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 1. Welcome Screen (Centered) */
+    .welcome-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: left;
+      width: 100%;
+      max-width: var(--input-max-width);
+      padding: 0 24px;
+      transition: opacity 0.4s ease, visibility 0.4s;
+      z-index: 2;
+    }
+
+    .greeting-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 56px;
+      font-weight: 500;
+      line-height: 1.1;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+      letter-spacing: -0.03em;
+    }
+
+    .greeting-sub {
+      font-size: 24px;
+      color: #c4c7c5;
+      font-weight: 500;
+    }
+
+    /* Hide welcome when chat active */
+    body.chat-active .welcome-container {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    /* 2. Chat Stream (Expands) */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 80px 20px 140px;
+      /* Space for header & input */
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      width: 100%;
+      max-width: var(--input-max-width);
+      margin: 0 auto;
+      scroll-behavior: smooth;
+      /* Hidden initially to keep center clean */
+      opacity: 0;
+      transition: opacity 0.5s ease;
+
+      /* Hide Native Scrollbar */
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE 10+ */
+    }
+
+    #messages::-webkit-scrollbar {
+      display: none;
+      /* Chrome/Safari */
+    }
+
+    body.chat-active #messages {
+      opacity: 1;
+    }
+
+    /* --- Custom Scroll Indicator --- */
+    .scroll-indicator {
+      position: absolute;
+      right: 4px;
+      top: 0;
+      width: 6px;
+      background: var(--accent-gradient);
+      border-radius: 10px;
+      opacity: 0.6;
+      transition: opacity 0.3s ease, height 0.1s ease, top 0.1s ease;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .scroll-indicator.hidden {
+      opacity: 0;
+    }
+
+    /* --- Message Styles --- */
+    .message-anim {
+      animation: slideUp 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .user-message {
+      align-self: flex-end;
+      background-color: var(--surface-color);
+      color: var(--text-main);
+      padding: 12px 20px;
+      border-radius: 24px;
+      max-width: 80%;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .agent-message {
+      align-self: flex-start;
+      width: 100%;
+      padding-left: 42px;
+      position: relative;
+      color: var(--text-main);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .agent-message::before {
+      content: "\f005";
+      /* Star/Sparkle */
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      position: absolute;
+      left: 0;
+      top: 4px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #fff, #e3f2fd);
+      color: var(--accent-color);
+      font-size: 16px;
+    }
+
+    /* Markdown Styles */
+    .agent-message strong {
+      font-weight: 600;
+      color: #000;
+    }
+
+    .agent-message h1 {
+      font-size: 1.5em;
+      font-weight: 600;
+      margin: 24px 0 12px;
+    }
+
+    .agent-message h2 {
+      font-size: 1.25em;
+      font-weight: 600;
+      margin: 20px 0 10px;
+    }
+
+    .agent-message ul,
+    .agent-message ol {
+      margin: 8px 0 16px 20px;
+    }
+
+    .agent-message li {
+      margin-bottom: 6px;
+    }
+
+    .agent-message code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    .agent-message pre {
+      background: var(--code-bg);
+      padding: 16px;
+      border-radius: 12px;
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid #e0e0e0;
+    }
+
+    /* --- Input Area --- */
+    .input-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding-bottom: 30px;
+      background: linear-gradient(to top, #ffffff 80%, rgba(255, 255, 255, 0));
+      z-index: 20;
+    }
+
+    .input-wrapper {
+      width: 100%;
+      max-width: var(--input-max-width);
+      padding: 0 20px;
+    }
+
+    #messageForm {
+      background-color: var(--surface-color);
+      border-radius: 36px;
+      padding: 10px 12px 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    #messageForm:focus-within {
+      background-color: #fff;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    #message {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      padding: 10px 0;
+    }
+
+    #sendButton {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    #message:valid~#sendButton,
+    #message:not(:placeholder-shown)~#sendButton {
+      background: #e8f0fe;
+      color: var(--accent-color);
+    }
+
+    /* --- Beautiful Loader (Restored) --- */
+    .typing-indicator {
+      margin-left: 42px;
+      display: flex;
+      gap: 6px;
+      padding: 0;
+      opacity: 0;
+      height: 0;
+      overflow: hidden;
+      transition: all 0.3s;
+      order: 9999;
+    }
+
+    .typing-indicator.visible {
+      opacity: 1;
+      height: auto;
+      padding: 10px 0 20px;
+    }
+
+    .typing-indicator span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      background-size: 200% 200%;
+      animation: pulse-gradient 1.5s infinite ease-in-out both;
+    }
+
+    .typing-indicator span:nth-child(1) {
+      animation-delay: -0.3s;
+    }
+
+    .typing-indicator span:nth-child(2) {
+      animation-delay: -0.15s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0s;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes gradientText {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    @keyframes pulse-gradient {
+
+      0%,
+      100% {
+        transform: scale(0.8);
+        opacity: 0.6;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 1;
+      }
+    }
+
+    /* --- Appear Animations --- */
+    header {
+      animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    .brand i {
+      animation: scaleIn 0.5s ease-out 0.2s both;
+    }
+
+    .welcome-container {
+      animation: fadeIn 0.8s ease-out forwards;
+    }
+
+    .greeting-text {
+      animation: slideUp 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) 0.1s both;
+      background-size: 200% 200%;
+    }
+
+    .greeting-sub {
+      animation: slideUp 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) 0.25s both;
+    }
+
+    .input-container {
+      animation: slideUp 0.6s cubic-bezier(0.2, 0.9, 0.3, 1) 0.3s both;
+    }
+
+    #messageForm {
+      animation: scaleIn 0.5s ease-out 0.4s both;
+    }
+
+    /* Message animations with different directions */
+    .user-message.message-anim {
+      animation: slideInRight 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+
+    .agent-message.message-anim {
+      animation: slideInLeft 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+    }
+
+    @media (max-width: 800px) {
+      .greeting-text {
+        font-size: 40px;
+      }
+
+      .greeting-sub {
+        font-size: 20px;
+      }
+
+      #messages {
+        padding-top: 70px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- <header>
+    <div class="brand">
+      <i class="fa-solid fa-sparkles"></i>
+      Gemini Assistant
+    </div>
+  </header> -->
+
+  <main>
+    <!-- Welcome Screen -->
+    <div class="welcome-container">
+      <div class="greeting-text">Hello, Mayank</div>
+      <div class="greeting-sub">How can I help you today?</div>
+    </div>
+
+    <!-- Chat Stream -->
+    <div id="messages">
+      <!-- Custom Scroll Indicator -->
+      <div id="scroll-indicator" class="scroll-indicator hidden"></div>
+
+      <!-- Messages injected here -->
+
+      <!-- Typing Indicator -->
+      <div id="typing-indicator" class="typing-indicator">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </main>
+
+  <div class="input-container">
+    <div class="input-wrapper">
+      <form id="messageForm">
+        <input type="text" id="message" name="message" placeholder="Ask anything..." autocomplete="off" required />
+        <button type="submit" id="sendButton">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- LOGIC -->
+  <script>
+    marked.setOptions({ breaks: true, gfm: true });
+
+    const messagesContainer = document.getElementById('messages');
+    const scrollIndicator = document.getElementById('scroll-indicator');
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    // Helper to process nodes and style them
+    function processNode(node) {
+      if (node.nodeType === 1) {
+        if (!node.classList.contains('message-anim') &&
+          (node.classList.contains('user-message') || node.classList.contains('agent-message'))) {
+          node.classList.add('message-anim');
+        }
+
+        // Render Markdown for Agent
+        if (node.classList.contains('agent-message')) {
+          let content = node.textContent;
+          try {
+            const trimmed = content.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              const json = JSON.parse(trimmed);
+              content = json.response || json.message || content;
+            }
+          } catch (e) { content = content.replace(/\\n/g, '\n'); }
+          node.innerHTML = DOMPurify.sanitize(marked.parse(content));
+        }
+      }
+    }
+
+    // Expose functions globally for app.js to use
+    window.showTypingIndicator = function () {
+      document.body.classList.add('chat-active'); // Ensure messages container is visible
+      typingIndicator.classList.add('visible');
+      setTimeout(() => {
+        messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+      }, 50);
+    };
+    window.hideTypingIndicator = function () {
+      typingIndicator.classList.remove('visible');
+    };
+
+    // Custom Scrollbar Logic
+    function updateScrollIndicator() {
+      const scrollHeight = messagesContainer.scrollHeight;
+      const clientHeight = messagesContainer.clientHeight;
+      const scrollTop = messagesContainer.scrollTop;
+
+      if (scrollHeight <= clientHeight + 5) {
+        scrollIndicator.classList.add('hidden');
+        return;
+      }
+
+      const indicatorHeight = Math.max(30, (clientHeight / scrollHeight) * clientHeight);
+      const maxScroll = scrollHeight - clientHeight;
+      const top = (scrollTop / maxScroll) * (clientHeight - indicatorHeight);
+
+      scrollIndicator.style.height = `${indicatorHeight}px`;
+      scrollIndicator.style.top = `${top}px`;
+      scrollIndicator.classList.remove('hidden');
+    }
+
+    messagesContainer.addEventListener('scroll', updateScrollIndicator);
+    window.addEventListener('resize', updateScrollIndicator);
+
+    // Track if user is near bottom (for auto-scroll behavior)
+    let userScrolledUp = false;
+    messagesContainer.addEventListener('scroll', () => {
+      const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+      userScrolledUp = distanceFromBottom > 100; // User scrolled up if more than 100px from bottom
+    });
+
+    const observer = new MutationObserver((mutations) => {
+      let newMessageAdded = false;
+
+      const msgCount = messagesContainer.querySelectorAll('.user-message, .agent-message').length;
+      if (msgCount > 0) {
+        document.body.classList.add('chat-active');
+      }
+
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) {
+              if (node.classList.contains('agent-message') || node.classList.contains('user-message')) {
+                processNode(node);
+                newMessageAdded = true;
+              }
+            }
+          });
+        }
+      });
+
+      // Only auto-scroll if a new message was added AND user hasn't scrolled up
+      if (newMessageAdded && !userScrolledUp) {
+        setTimeout(() => {
+          messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+        }, 50);
+      }
+
+      updateScrollIndicator();
+    });
+
+    observer.observe(messagesContainer, { childList: true, subtree: false, attributes: false });
+
+    updateScrollIndicator();
+  </script>
+
+</body>
+
+</html>
