@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat Assistant</title>
 
-  <!-- External Logic (Kept as requested) -->
+  <!-- External Logic -->
   <script src="/static/js/app.js" type="module"></script>
 
   <!-- Markdown Parsing Libraries -->
@@ -23,13 +23,10 @@
       /* Clean Light Palette */
       --bg-color: #ffffff;
       --surface-color: #f0f4f9;
-      /* Light grey for inputs/bubbles */
       --text-main: #1f1f1f;
       --text-secondary: #444746;
       --accent-color: #0b57d0;
-      /* Google Blue */
-      /* Reddish Gradient per your code */
-      --accent-gradient: linear-gradient(90deg, #1559be, #04a2eb, #1094e7);
+      --accent-gradient: linear-gradient(90deg, #ff0000, #eb4604, #d96570);
 
       /* Code Blocks */
       --code-bg: #f5f5f5;
@@ -131,12 +128,11 @@
       visibility: hidden;
     }
 
-    /* 2. Chat Stream (Expands) */
+    /* 2. Chat Stream */
     #messages {
       flex: 1;
       overflow-y: auto;
       padding: 80px 20px 140px;
-      /* Space for header & input */
       display: flex;
       flex-direction: column;
       gap: 32px;
@@ -144,20 +140,16 @@
       max-width: var(--input-max-width);
       margin: 0 auto;
       scroll-behavior: smooth;
-      /* Hidden initially to keep center clean */
       opacity: 0;
       transition: opacity 0.5s ease;
-
-      /* Hide Native Scrollbar */
       scrollbar-width: none;
       /* Firefox */
       -ms-overflow-style: none;
-      /* IE 10+ */
+      /* IE */
     }
 
     #messages::-webkit-scrollbar {
       display: none;
-      /* Chrome/Safari */
     }
 
     body.chat-active #messages {
@@ -226,6 +218,156 @@
       background: radial-gradient(circle at center, #fff, #e3f2fd);
       color: var(--accent-color);
       font-size: 16px;
+    }
+
+    /* --- THOUGHTS WRAPPER (Collapsible container for all thoughts) --- */
+    .thoughts-wrapper {
+      margin: 8px 0 20px 0;
+    }
+
+    .thoughts-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 12px;
+    }
+
+    .thoughts-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #616161;
+      background: #f1f3f4;
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .thoughts-label i {
+      color: #757575;
+      font-size: 10px;
+    }
+
+    .thoughts-toggle {
+      font-size: 10px;
+      color: #9e9e9e;
+      transition: transform 0.2s ease;
+    }
+
+    .thoughts-wrapper.collapsed .thoughts-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .thoughts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 3000px;
+      opacity: 1;
+      overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease;
+    }
+
+    .thoughts-wrapper.collapsed .thoughts-list {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    /* --- Individual Thought Box --- */
+    .thought-box {
+      position: relative;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+      border: 1px solid #e8e8e8;
+      border-left: 3px solid #bdbdbd;
+      border-radius: 8px;
+      font-size: 0.9em;
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      font-style: italic;
+      animation: thoughtSlideIn 0.3s ease-out forwards;
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+
+    .thought-box:hover {
+      border-left-color: #9e9e9e;
+      background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+    }
+
+    .thought-box::before {
+      content: counter(thought-counter);
+      counter-increment: thought-counter;
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #bdbdbd;
+      font-style: normal;
+    }
+
+    .thoughts-list {
+      counter-reset: thought-counter;
+    }
+
+    @keyframes thoughtSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* --- Tool Calls Block --- */
+    .tools-container {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-left: 4px;
+    }
+
+    .tool-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border: 1px solid #90caf9;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #1565c0;
+      animation: toolPop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+      opacity: 0;
+      transform: scale(0.8);
+    }
+
+    .tool-chip i {
+      font-size: 10px;
+    }
+
+    @keyframes toolPop {
+      from {
+        opacity: 0;
+        transform: scale(0.8);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
     }
 
     /* Markdown Styles */
@@ -337,7 +479,7 @@
       color: var(--accent-color);
     }
 
-    /* --- Beautiful Loader (Restored) --- */
+    /* --- Beautiful Loader --- */
     .typing-indicator {
       margin-left: 42px;
       display: flex;
@@ -435,20 +577,6 @@
       }
     }
 
-    @keyframes gradientText {
-      0% {
-        background-position: 0% 50%;
-      }
-
-      50% {
-        background-position: 100% 50%;
-      }
-
-      100% {
-        background-position: 0% 50%;
-      }
-    }
-
     @keyframes pulse-gradient {
 
       0%,
@@ -493,7 +621,6 @@
       animation: scaleIn 0.5s ease-out 0.4s both;
     }
 
-    /* Message animations with different directions */
     .user-message.message-anim {
       animation: slideInRight 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
     }
@@ -519,13 +646,6 @@
 </head>
 
 <body>
-
-  <!-- <header>
-    <div class="brand">
-      <i class="fa-solid fa-sparkles"></i>
-      Gemini Assistant
-    </div>
-  </header> -->
 
   <main>
     <!-- Welcome Screen -->
@@ -563,11 +683,13 @@
 
   <!-- LOGIC -->
   <script>
+    // Configuration
     marked.setOptions({ breaks: true, gfm: true });
 
     const messagesContainer = document.getElementById('messages');
     const scrollIndicator = document.getElementById('scroll-indicator');
     const typingIndicator = document.getElementById('typing-indicator');
+    const messageForm = document.getElementById('messageForm');
 
     // Helper to process nodes and style them
     function processNode(node) {
@@ -577,24 +699,84 @@
           node.classList.add('message-anim');
         }
 
-        // Render Markdown for Agent
+        // Render Markdown, THOUGHTS & TOOLS for Agent
         if (node.classList.contains('agent-message')) {
           let content = node.textContent;
+          let thoughtsList = [];
+          let toolCalls = [];
+
           try {
             const trimmed = content.trim();
+            // Check if it looks like JSON
             if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
               const json = JSON.parse(trimmed);
+              console.log("Parsed JSON from Agent:", json); // Debug logging
+
+              // Extract Thoughts (now as an array)
+              if (json.thoughts && Array.isArray(json.thoughts)) {
+                thoughtsList = json.thoughts;
+              }
+
+              // Extract Tool Calls
+              if (json.tool_calls && Array.isArray(json.tool_calls)) {
+                toolCalls = json.tool_calls;
+              }
+
+              // Determines the content to display as the main message
               content = json.response || json.message || content;
             }
-          } catch (e) { content = content.replace(/\\n/g, '\n'); }
-          node.innerHTML = DOMPurify.sanitize(marked.parse(content));
+          } catch (e) {
+            console.error("JSON Parsing failed, treating as raw text:", e);
+            content = content.replace(/\\n/g, '\n');
+          }
+
+          // Safe render function
+          const renderMarkdown = (text) => {
+            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+              return DOMPurify.sanitize(marked.parse(text));
+            }
+            return text; // Fallback
+          };
+
+          // Build HTML with Tool Calls, Thoughts List, then Response
+          let finalHtml = "";
+
+          // Tool Calls chips
+          if (toolCalls.length > 0) {
+            finalHtml += `<div class="tools-container">`;
+            toolCalls.forEach((tool, idx) => {
+              finalHtml += `<div class="tool-chip completed" style="animation-delay: ${idx * 0.1}s">
+                              <i class="fa-solid fa-check"></i>
+                              <span>${renderMarkdown(tool).replace(/<[^>]*>?/gm, '')}</span>
+                            </div>`;
+            });
+            finalHtml += `</div>`;
+          }
+
+          // Thoughts list (each thought in its own box, collapsible wrapper)
+          if (thoughtsList.length > 0) {
+            const uniqueId = 'thoughts-' + Date.now() + Math.random().toString(36).substr(2, 5);
+            finalHtml += `<div class="thoughts-wrapper" id="${uniqueId}">
+                            <div class="thoughts-header" onclick="document.getElementById('${uniqueId}').classList.toggle('collapsed')">
+                              <div class="thoughts-label"><i class="fa-solid fa-brain"></i> Thoughts (${thoughtsList.length})</div>
+                              <i class="fa-solid fa-chevron-down thoughts-toggle"></i>
+                            </div>
+                            <div class="thoughts-list">`;
+            thoughtsList.forEach((thought, idx) => {
+              finalHtml += `<div class="thought-box" style="animation-delay: ${idx * 0.08}s">${renderMarkdown(thought)}</div>`;
+            });
+            finalHtml += `</div></div>`;
+          }
+
+          finalHtml += renderMarkdown(content);
+          node.innerHTML = finalHtml;
         }
       }
     }
 
     // Expose functions globally for app.js to use
     window.showTypingIndicator = function () {
-      document.body.classList.add('chat-active'); // Ensure messages container is visible
+      document.body.classList.add('chat-active');
       typingIndicator.classList.add('visible');
       setTimeout(() => {
         messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
@@ -603,6 +785,12 @@
     window.hideTypingIndicator = function () {
       typingIndicator.classList.remove('visible');
     };
+
+    // 1. Logic to SHOW loader on submit
+    messageForm.addEventListener('submit', (e) => {
+      window.showTypingIndicator();
+      // Real requests are handled by app.js
+    });
 
     // Custom Scrollbar Logic
     function updateScrollIndicator() {
@@ -649,6 +837,10 @@
               if (node.classList.contains('agent-message') || node.classList.contains('user-message')) {
                 processNode(node);
                 newMessageAdded = true;
+                // If message added, hide loader
+                if (node.classList.contains('agent-message')) {
+                  window.hideTypingIndicator();
+                }
               }
             }
           });

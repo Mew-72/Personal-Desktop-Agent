@@ -5,7 +5,7 @@ from mcp import StdioServerParameters
 
 TARGET_FOLDER_PATH = os.getcwd()  # Use current working directory as target folder
 
-file_mcp = McpToolset(
+_mcp = McpToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command='npx',

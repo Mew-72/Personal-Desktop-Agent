@@ -51,12 +51,15 @@ async def start_agent_session(session_id):
 
 async def collect_agent_response(
     events,
-) -> str:
-    """Collect the complete agent response from events"""
+) -> dict:
+    """Collect the complete agent response from events including thinking and tool calls"""
     response_text = ""
+    thoughts_list = []  # List of individual thoughts
+    tool_calls = []  # List of tool names that were called
+    
     # Process the async generator
     async for event in events:
-        print(event) # only for debugging
+        print(event)  # only for debugging
         if event is None:
             continue
 
@@ -64,6 +67,22 @@ async def collect_agent_response(
         if event.turn_complete:
             print(f"[AGENT]: Turn complete")
             break
+        
+        # Check for tool calls in the event
+        if hasattr(event, 'tool_calls') and event.tool_calls:
+            for tool_call in event.tool_calls:
+                tool_name = getattr(tool_call, 'name', str(tool_call))
+                if tool_name not in tool_calls:
+                    tool_calls.append(tool_name)
+                print(f"[TOOL CALL]: {tool_name}")
+        
+        # Check for function calls (alternative structure)
+        if hasattr(event, 'function_calls') and event.function_calls:
+            for func_call in event.function_calls:
+                func_name = getattr(func_call, 'name', str(func_call))
+                if func_name not in tool_calls:
+                    tool_calls.append(func_name)
+                print(f"[FUNCTION CALL]: {func_name}")
 
         # Read all parts from the Content, not just the first one
         if not event.content or not event.content.parts:
@@ -77,12 +96,48 @@ async def collect_agent_response(
             if not isinstance(part, types.Part):
                 continue
 
-            # Collect text responses from all parts
+            # Debug: Print part attributes to understand structure
+            print(f"[DEBUG PART]: {part}")
+            print(f"[DEBUG PART ATTRS]: thought={getattr(part, 'thought', None)}, text={bool(part.text)}")
+
+            # Check if this part contains thinking (thought=True means text is thinking)
+            if hasattr(part, 'thought') and part.thought and part.text:
+                # Add each thought as a separate item in the list
+                thought_text = part.text
+                if thought_text:
+                    thoughts_list.append(thought_text)
+                print(f"[AGENT THINKING]: {part.text}")
+                continue  # Don't add thinking text to response
+            
+            # Check for function call in part
+            if hasattr(part, 'function_call') and part.function_call:
+                func_name = getattr(part.function_call, 'name', str(part.function_call))
+                if func_name not in tool_calls:
+                    tool_calls.append(func_name)
+                print(f"[FUNCTION CALL]: {func_name}")
+            
+            # Check for function response in part (means a tool was executed)
+            if hasattr(part, 'function_response') and part.function_response:
+                func_name = getattr(part.function_response, 'name', 'tool')
+                if func_name not in tool_calls:
+                    tool_calls.append(func_name)
+                print(f"[FUNCTION RESPONSE]: {func_name}")
+
+            # Collect text responses from all parts (only non-thinking text)
             if part.text:
                 response_text += part.text
                 print(f"[AGENT TO CLIENT]: {part.text}")
     
-    return response_text
+    # Debug: Print what we collected
+    print(f"[DEBUG] Response length: {len(response_text)}")
+    print(f"[DEBUG] Thoughts count: {len(thoughts_list)}")
+    print(f"[DEBUG] Tool calls: {tool_calls}")
+    
+    return {
+        "response": response_text,
+        "thoughts": thoughts_list,
+        "tool_calls": tool_calls
+    }
 
 
 #
@@ -142,12 +197,15 @@ async def message_endpoint(request: MessageRequest):
         )
         
         # Collect the complete response from the agent
-        response_text = await collect_agent_response(events)
+        result = await collect_agent_response(events)
+        # print(result)  # Debug: print the final collected result
         
-        # Return the response
+        # Return the response with thoughts list and tool calls
         return {
-            "response": response_text,
-            "message": response_text  # Include both keys for flexibility
+            "response": result["response"],
+            "message": result["response"],  # Include both keys for flexibility
+            "thoughts": result["thoughts"],
+            "tool_calls": result["tool_calls"]
         }
     
     except Exception as e:

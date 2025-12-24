@@ -7,7 +7,7 @@ import os
 # load environment variables from .env file in the root directory of the project
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
 
-spotify_mcp = McpToolset(
+_mcp = McpToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command='node',

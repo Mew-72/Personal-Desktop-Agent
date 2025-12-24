@@ -133,12 +133,25 @@ messageForm.onsubmit = async function (e) {
         typingIndicator.classList.remove("visible");
       }
 
-      // Display agent response
+      // Display agent response with thinking and tool calls
       const agentMessageElem = document.createElement("p");
-      agentMessageElem.textContent = data.response || data.message || "No response";
+
+      // Build response object with thoughts list and tool_calls for frontend parsing
+      const responseObj = {
+        response: data.response || data.message || "No response",
+        thoughts: data.thoughts || [],
+        tool_calls: data.tool_calls || []
+      };
+
+      console.log(responseObj);
+
+      // Set as JSON string so the MutationObserver in index.html can parse it
+      agentMessageElem.textContent = JSON.stringify(responseObj);
       agentMessageElem.className = "agent-message";
       messagesDiv.appendChild(agentMessageElem);
-      addMessageToHistory('agent', agentMessageElem.textContent);
+
+      // Save only the response text to history (not thinking/tools)
+      addMessageToHistory('agent', responseObj.response);
     } catch (error) {
       console.error("Error sending message:", error);
       if (window.hideTypingIndicator) {

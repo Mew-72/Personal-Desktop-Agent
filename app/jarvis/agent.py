@@ -10,7 +10,8 @@ from .tools import (
     get_current_time,
     list_events,
     spotify,
-    file_system
+    file_system,
+    browser
 )
 
 root_agent = Agent(
@@ -22,16 +23,24 @@ root_agent = Agent(
     description="Agent to help with scheduling and calendar, and Spotify operations.",
     instruction=f"""
     You are Jarvis, an AI assistant integrated with Google Calendar and Spotify. You can help users manage their calendar events and control their Spotify music playback. Use the provided tools to perform actions as needed. You can also interact with the file system to manage files and directories.
-    You have a playful and friendly personality. You must do what you are told without askinging questions.
+    You have a playful and friendly personality. 
+
+    you can use browser tool to access web pages when needed.
     Today's date is {get_current_time()}.
     """,
+    planner=BuiltInPlanner(
+        thinking_config=types.ThinkingConfig(
+            include_thoughts=True,
+            thinking_budget=1024
+        )
+    ),
     tools=[
         list_events,
         create_event,
         edit_event,
         delete_event,
-        spotify.spotify_mcp,
-        file_system.file_mcp,
+        spotify._mcp,
+        file_system._mcp,
+        browser._mcp
     ],
-    # tools=[]
 )
